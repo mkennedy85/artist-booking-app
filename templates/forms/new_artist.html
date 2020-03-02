@@ -1,0 +1,65 @@
+{% extends 'layouts/main.html' %}
+{% block title %}New Artist{% endblock %}
+{% block content %}
+  <div class="form-wrapper">
+    <form method="post" class="form">
+      <h3 class="form-heading">List a new artist</h3>
+      <div class="form-group">
+        <label for="name">Name</label>
+        {{ form.name(class_ = 'form-control', autofocus = true) }}
+      </div>
+      <div class="form-group">
+          <label>City & State</label>
+          <div class="form-inline">
+            <div class="form-group">
+              {{ form.city(class_ = 'form-control', placeholder='City', autofocus = true) }}
+            </div>
+            <div class="form-group">
+              {{ form.state(class_ = 'form-control', placeholder='State', autofocus = true) }}
+            </div>
+          </div>
+      </div>
+      <div class="form-group">
+          <label for="phone">Phone</label>
+          {{ form.phone(class_ = 'form-control', placeholder='xxx-xxx-xxxx', autofocus = true) }}
+        </div>
+      <div class="form-group">
+        <label for="genres">Genres</label>
+        <small>Ctrl+Click to select multiple</small>
+        {{ form.genres(class_ = 'form-control', placeholder='Genres, separated by commas', id=form.state, autofocus = true) }}
+      </div>
+      <div class="form-group">
+          <label for="genres">Facebook Link</label>
+          {{ form.facebook_link(class_ = 'form-control', placeholder='http://', id=form.state, autofocus = true) }}
+        </div>
+      <input type="submit" value="Create Venue" class="btn btn-primary btn-lg btn-block">
+    </form>
+  </div>
+  <script>
+    // Function to validate whether or not element supports multiple values
+    const isMultiSelect = element => element.options && element.multiple;
+
+    // Function for selecting mulitple values if element contains it
+    const getSelectValues = options => [].reduce.call(options, (values, option) => {
+      return option.selected ? values.concat(option.value) : values;
+    }, []);
+
+    // Function for converting elements in a form element to a JSON object
+    const formToJSON = elements => [].reduce.call(elements, (data, element) => {
+      // Conditional for genres as it supports multiple selections
+      if (isMultiSelect(element)) {
+        data[element.name] = getSelectValues(element);
+      } else {
+        data[element.name] = element.value;
+      }
+      return data;
+    }, {});
+
+    document.getElementsByClassName('form')[0].onsubmit = function(e) {
+      e.preventDefault();
+      const form = document.getElementsByClassName('form')[0];
+      const results = formToJSON(form.elements);
+      console.log(results)
+    }
+  </script>
+{% endblock %}
