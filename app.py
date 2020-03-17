@@ -20,6 +20,9 @@ from flask_migrate import Migrate
 
 #----------------------------------------------------------------------------#
 # App Config.
+#
+# SLQAlchemy configured in config.py and flask-migrate used for migration
+# 
 #----------------------------------------------------------------------------#
 
 app = Flask(__name__)
@@ -30,54 +33,55 @@ migrate = Migrate(app, db)
 
 @app.before_request
 def log_request_info():
-    app.logger.debug('Headers: %s', request.headers)
-    app.logger.debug('Body: %s', request.get_data())
+  app.logger.debug('Headers: %s', request.headers)
+  app.logger.debug('Body: %s', request.get_data())
 
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
 
 class Venue(db.Model):
-    __tablename__ = 'venue'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    city = db.Column(db.String(120), nullable=False)
-    state = db.Column(db.String(120), nullable=False)
-    address = db.Column(db.String(120), nullable=False)
-    genres = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500), nullable=False, server_default='https://via.placeholder.com/300')
-    facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(120))
-    shows = db.relationship('Show', backref='venue', lazy=True)
+  __tablename__ = 'venue'
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String, nullable=False)
+  city = db.Column(db.String(120), nullable=False)
+  state = db.Column(db.String(120), nullable=False)
+  address = db.Column(db.String(120), nullable=False)
+  genres = db.Column(db.String(120), nullable=False)
+  phone = db.Column(db.String(120))
+  image_link = db.Column(db.String(500), nullable=False, server_default='https://via.placeholder.com/300')
+  facebook_link = db.Column(db.String(120))
+  website = db.Column(db.String(120))
+  seeking_talent = db.Column(db.Boolean, default=False)
+  seeking_description = db.Column(db.String(120))
+  shows = db.relationship('Show', backref='venue', lazy=True)
 
-    def get_venue(venue):
-      data = {'id': venue.id, 'name': venue.name}
-      return data
+  # Returns a venue with ID and name only to be used within aggregations
+  def get_venue(venue):
+    data = {'id': venue.id, 'name': venue.name}
+    return data
 
 class Artist(db.Model):
-    __tablename__ = 'artist'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    city = db.Column(db.String(120), nullable=False)
-    state = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(120), nullable=False)
-    genres = db.Column(db.String(120), nullable=False)
-    image_link = db.Column(db.String(500), nullable=False, server_default='https://via.placeholder.com/300')
-    facebook_link = db.Column(db.String(120))
-    website = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(120))
-    shows = db.relationship('Show', backref='artist', lazy=True)
+  __tablename__ = 'artist'
+  id = db.Column(db.Integer, primary_key=True)
+  name = db.Column(db.String, nullable=False)
+  city = db.Column(db.String(120), nullable=False)
+  state = db.Column(db.String(120), nullable=False)
+  phone = db.Column(db.String(120), nullable=False)
+  genres = db.Column(db.String(120), nullable=False)
+  image_link = db.Column(db.String(500), nullable=False, server_default='https://via.placeholder.com/300')
+  facebook_link = db.Column(db.String(120))
+  website = db.Column(db.String(120))
+  seeking_venue = db.Column(db.Boolean, default=False)
+  seeking_description = db.Column(db.String(120))
+  shows = db.relationship('Show', backref='artist', lazy=True)
 
 class Show(db.Model):
-    __tablename__ = 'show'
-    id = db.Column(db.Integer, primary_key=True)
-    artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
-    venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), nullable=False)
-    start_time = db.Column(db.String(120), nullable=False)
+  __tablename__ = 'show'
+  id = db.Column(db.Integer, primary_key=True)
+  artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
+  venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), nullable=False)
+  start_time = db.Column(db.String(120), nullable=False)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -86,9 +90,9 @@ class Show(db.Model):
 def format_datetime(value, format='medium'):
   date = dateutil.parser.parse(value)
   if format == 'full':
-      format="EEEE MMMM, d, y 'at' h:mma"
+    format="EEEE MMMM, d, y 'at' h:mma"
   elif format == 'medium':
-      format="EE MM, dd, y h:mma"
+    format="EE MM, dd, y h:mma"
   return babel.dates.format_datetime(date, format)
 
 app.jinja_env.filters['datetime'] = format_datetime
@@ -105,6 +109,7 @@ def index():
 #  ----------------------------------------------------------------
 
 @app.route('/venues')
+# Displays venues by distinct areas
 def venues():
   data=[]
   areas = Venue.query.distinct('city', 'state').all()
@@ -119,6 +124,7 @@ def venues():
   return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
+# Performs a case-insensitive query and returns the fuzzy-matched venues
 def search_venues():
   venues_object = Venue.query.filter(Venue.name.ilike(f"%{request.form.get('search_term', '')}%")).all()
   search_object = {
@@ -137,6 +143,7 @@ def search_venues():
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
+  # Using a full join to capture a venue that has no shows listed
   venue = Venue.query.join(Venue.shows, full=True).filter(Venue.id == venue_id).first()
   venue_object = {
     'id': venue.id,
@@ -155,6 +162,7 @@ def show_venue(venue_id):
     'upcoming_shows': [],
     'upcoming_shows_count': 0
   }
+  # This will return the object without show listings if there aren't any
   if venue.shows is not None:
     for show in venue.shows:
         artist = Artist.query.filter(Artist.id == show.artist_id).first()
@@ -180,6 +188,7 @@ def create_venue_form():
   return render_template('forms/new_venue.html', form=form)
 
 @app.route('/venues/create', methods=['POST'])
+# Creates a venue and will rollback if not successful
 def create_venue_submission():
   error = False
   genres = []
@@ -211,6 +220,7 @@ def create_venue_submission():
   return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
+# Deletes the venue provided with the endpoint using `curl -X DELETE` and returns a JSON response
 def delete_venue(venue_id):
   error = False
   try:
@@ -234,6 +244,7 @@ def artists():
   return render_template('pages/artists.html', artists=artists)
 
 @app.route('/artists/search', methods=['POST'])
+# Performs a case-insensitive query and returns the fuzzy-matched artists
 def search_artists():
   artists_object = Artist.query.filter(Artist.name.ilike(f"%{request.form.get('search_term', '')}%")).all()
   search_object = {
@@ -251,6 +262,7 @@ def search_artists():
   return render_template('pages/search_artists.html', results=search_object, search_term=request.form.get('search_term', ''))
 
 @app.route('/artists/<int:artist_id>')
+# Using a full join to capture a artist that has no shows listed
 def show_artist(artist_id):
   artist = Artist.query.join(Artist.shows, full=True).filter(Artist.id == artist_id).first()
   artist_object = {
@@ -269,6 +281,7 @@ def show_artist(artist_id):
     'upcoming_shows': [],
     'upcoming_shows_count': 0
   }
+  # This will return the object without show listings if there aren't any
   if artist.shows is not None:
     for show in artist.shows:
       venue = Venue.query.filter(Venue.id == show.venue_id).first()
@@ -308,6 +321,7 @@ def edit_artist(artist_id):
   return render_template('forms/edit_artist.html', form=form, artist=artist_object)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])
+# Edits the artist ID in the endpoint and will rollback if not successful
 def edit_artist_submission(artist_id):
   artist = Artist.query.filter(Artist.id == artist_id).first()
   error = False
@@ -358,6 +372,7 @@ def edit_venue(venue_id):
   return render_template('forms/edit_venue.html', form=form, venue=venue_object)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
+# Edits the venue ID in the endpoint and will rollback if not successful
 def edit_venue_submission(venue_id):
   venue = Venue.query.filter(Venue.id == venue_id).first()
   error = False
@@ -397,6 +412,7 @@ def create_artist_form():
   return render_template('forms/new_artist.html', form=form)
 
 @app.route('/artists/create', methods=['POST'])
+# Creates an artist and will rollback if not successful
 def create_artist_submission():
   error = False
   genres = []
@@ -427,6 +443,7 @@ def create_artist_submission():
   return render_template('pages/home.html')
 
 @app.route('/artists/<artist_id>', methods=['DELETE'])
+# Deletes the artist provided with the endpoint using `curl -X DELETE` and returns a JSON response
 def delete_artist(artist_id):
   error = False
   try:
@@ -450,6 +467,7 @@ def shows():
   shows = Show.query.all()
   shows_object = []
   for show in shows:
+    # Displays only upcoming shows and omits past shows
     if dateutil.parser.parse(show.start_time) >= datetime.utcnow().replace(tzinfo=pytz.utc):
       artist = Artist.query.filter(Artist.id == show.artist_id).first()
       venue = Venue.query.filter(Venue.id == show.venue_id).first()
@@ -470,6 +488,7 @@ def create_shows():
   return render_template('forms/new_show.html', form=form)
 
 @app.route('/shows/create', methods=['POST'])
+# Creates a show and will rollback if not successful
 def create_show_submission():
   error = False
   try:
